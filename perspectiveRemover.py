@@ -6,6 +6,8 @@ from sys import argv
 import tkinter
 #import imagetk
 #from PIL import Image, ImageTk
+import numpy as np
+
 
 NEW_FILE_SUFFIX = "FIXED"
 
@@ -22,7 +24,7 @@ theImage = None
 def getCornerCoordinates(theFilename, width, height, pixels):
     """
     Prompt user for corners of a square on the image.
-    Returned as a 4-tuple of image coordinate pairs.
+    Returned as a 4-tuple of 2-tuple image coordinate pairs.
     """
     root = tkinter.Tk()
     #w = tkinter.Label(root, text="Hello")
@@ -52,32 +54,46 @@ def getCornerCoordinates(theFilename, width, height, pixels):
     canvas.pack(expand=True, fill=tkinter.X)
     canvas.config(scrollregion=canvas.bbox(tkinter.ALL))
     
+    corners = [] 
     
     def printCoords(event):
+        nonlocal root, corners
         print (event.x, event.y)
+        print("Clicked corner at (%d,%d)" % (event.x, event.y))
+        corners.append((event.x, event.y))
+        if(len(corners) == 4):
+            root.quit()
 
     canvas.bind("<Button 1>", printCoords)
- 
-    root.mainloop()
     
+    print("Click the corners of a rectangle in the image") 
+    root.mainloop()
+    print("Got image corners")
 
+    return (corner for corner in corners)
 
-    return (None, None, None, None)
-
-
+def makeEquationsForPoints(imageX, imageY, w1, w2):
+    """
+    Input: An (imageX, imageY) point on the image, and a (w1, w2) coordinate pair s.t.
+    w1=realX/realZ, w2=realY/realZ where (realX,realY,realZ) is the corresponding
+    point in the real world coordinate system. 
+    
+    Output: List [u,v] of D-vecs that define linear equations u*h == 0, v*h == 0
+    """
+    u = np.array([-imageX,-imageY,-1,0,0,0,w1*imageX,w1*imageY,w1])
+    v = np.array([0,0,0,-imageX,-imageY,-1,w2*imageX,w2*imageY,w2])
+    return [u,v]
 
 if __name__ == "__main__":
-    print("Helloo!")
     if len(argv) < 2:
         showUsage()
         exit()
 
-
     theFilename = argv[1]
     print("Processing file:", theFilename)
     
-    #(w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
-    (w,h,p,m) = (None,None,None,None)
+    (w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
+    #(w,h,p,m) = (None,None,None,None)
 
     print("w:", w)
     print("h:", h)
@@ -87,8 +103,22 @@ if __name__ == "__main__":
     #print("m next:", next(p))
 
     (c0, c1, c2, c3) = getCornerCoordinates(theFilename, w, h, p)
+    print("Corners", c0, c1, c2, c3)
 
+    wVec = np.array([1,0,0,0,0,0,0,0,0])
 
+    equationsList = [
+        makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
+        makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
+        makeEquationsForPoints(c1[0], c1[1], 0, 0)[0],
+        makeEquationsForPoints(c1[0], c1[1], 0, 0)[1],
+        makeEquationsForPoints(c2[0], c2[1], 0, 0)[0],
+        makeEquationsForPoints(c2[0], c2[1], 0, 0)[1],
+        makeEquationsForPoints(c3[0], c3[1], 0, 0)[0],
+        makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
+        wVec
+    ] 
+    print("Got equationsList", equationsList)
 
 
 
