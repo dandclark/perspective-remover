@@ -80,8 +80,8 @@ def makeEquationsForPoints(imageX, imageY, w1, w2):
     
     Output: List [u,v] of D-vecs that define linear equations u*h == 0, v*h == 0
     """
-    u = np.array([-imageX,-imageY,-1,0,0,0,w1*imageX,w1*imageY,w1])
-    v = np.array([0,0,0,-imageX,-imageY,-1,w2*imageX,w2*imageY,w2])
+    u = np.mat([-imageX,-imageY,-1,0,0,0,w1*imageX,w1*imageY,w1])
+    v = np.mat([0,0,0,-imageX,-imageY,-1,w2*imageX,w2*imageY,w2])
     return [u,v]
 
 if __name__ == "__main__":
@@ -102,23 +102,41 @@ if __name__ == "__main__":
     #print("p next:", next(p))
     #print("m next:", next(p))
 
-    (c0, c1, c2, c3) = getCornerCoordinates(theFilename, w, h, p)
+    #(c0, c1, c2, c3) = getCornerCoordinates(theFilename, w, h, p)
+    
+    # Test points for board.png
+    (c0, c1, c2, c3) = ((358,36),(329,597),(592,157),(580,483))
     print("Corners", c0, c1, c2, c3)
 
-    wVec = np.array([1,0,0,0,0,0,0,0,0])
+    wVec = np.mat([1,0,0,0,0,0,0,0,0])
 
     equationsList = [
         makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
         makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
-        makeEquationsForPoints(c1[0], c1[1], 0, 0)[0],
-        makeEquationsForPoints(c1[0], c1[1], 0, 0)[1],
-        makeEquationsForPoints(c2[0], c2[1], 0, 0)[0],
-        makeEquationsForPoints(c2[0], c2[1], 0, 0)[1],
-        makeEquationsForPoints(c3[0], c3[1], 0, 0)[0],
-        makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
+        makeEquationsForPoints(c1[0], c1[1], 0, 1)[0],
+        makeEquationsForPoints(c1[0], c1[1], 0, 1)[1],
+        makeEquationsForPoints(c2[0], c2[1], 1, 0)[0],
+        makeEquationsForPoints(c2[0], c2[1], 1, 0)[1],
+        makeEquationsForPoints(c3[0], c3[1], 1, 1)[0],
+        makeEquationsForPoints(c0[0], c0[1], 1, 1)[1],
         wVec
     ] 
     print("Got equationsList", equationsList)
+    for equation in equationsList:
+        print(equation)
+
+    lMat = np.concatenate(equationsList)
+    b = np.mat([0,0,0,0,0,0,0,0,1])
+
+    print("lMat:\n", lMat)
+    print("b:\n", b)
+
+       
+ 
+    # Solve L * H = b
+    hVec = np.linalg.lstsq(lMat, b)
+
+    print("hVec:\n", hVec)
 
 
 
