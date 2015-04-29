@@ -84,6 +84,58 @@ def makeEquationsForPoints(imageX, imageY, w1, w2):
     v = np.array([0,0,0,-imageX,-imageY,-1,w2*imageX,w2*imageY,w2])
     return [u,v]
 
+def fileToMatrices(filename):
+    """
+    Input: Name of png file
+    Output: (points, colors) tuple.
+    
+    points is a 3xN matrix where each column is a point in the
+    original (W,H) image (1,1)(1,2)...(W,H) and the column labels
+    are the 3 x1,x2,x3 dimensions of the point in the camera
+    coordinate system.
+   
+    colors is the corresponding 3xN matrix of colors for each point in the
+    original image, where the columns again correspond to
+    each point and the rows are the R,G,B values of each pixel. 
+    """
+    (width, height, pixels, meta) = png.Reader(filename = theFilename).asRGB() 
+
+    #assert len(pixels) / 3 == height
+
+    imgList = [[],[],[]]
+    colorList = [[],[],[]]
+
+    for y in range(height):
+        print("Writing row", y)
+        row = next(pixels)
+
+        assert len(row) / 3 == width
+
+        for x in range(0, width):
+            pixelIndex = y*width + x
+            #print("Writing pixel at (%i, %i)" % (x, y))
+            # Memory locality/cache performance is probably terrible
+            # for this, should reevalutate if this turns out to
+            # be a perf issue as there are definitely better ways
+            # to set up these matrices.
+            imgList[0].append(x)
+            imgList[1].append(y)
+            imgList[2].append(1)
+            
+            colorList[0].append(row[x*3])
+            colorList[1].append(row[x*3 + 1])
+            colorList[2].append(row[x*3 + 2])
+
+    print("len(imgList[0]", len(imgList[0]))
+    print("len(colorList[1]", len(colorList[1]))
+    print("width", width)
+    print("height", height)
+    print("width * height", width * height)
+
+    assert len(imgList[0]) == (width * height)
+
+    return (np.array(imgList), np.array(colorList))
+
 if __name__ == "__main__":
     if len(argv) < 2:
         showUsage()
@@ -92,13 +144,18 @@ if __name__ == "__main__":
     theFilename = argv[1]
     print("Processing file:", theFilename)
     
-    (w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
+    #(w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
     #(w,h,p,m) = (None,None,None,None)
 
-    print("w:", w)
-    print("h:", h)
+    (cameraPoints, cameraColors) = fileToMatrices(theFilename)
+
+    print("cameraPoints", cameraPoints)
+    print("cameraColors", cameraColors)
+
+    #print("w:", w)
+    #print("h:", h)
     #assert len(p) == h
-    assert (len(next(p)) / 3) == w
+    #assert (len(next(p)) / 3) == w
     #print("p len next:", len(next(p)))
     #print("p next:", next(p))
     #print("m next:", next(p))
@@ -135,9 +192,13 @@ if __name__ == "__main__":
 
  
     # Solve L * H = b
-    hVec = np.linalg.lstsq(lMat, b)
+    hVec = np.linalg.lstsq(lMat, b)[0]
 
     print("hVec:\n", hVec)
+
+    rotatedPoints = hVec * cameraPoints
+
+    print("rotatedPoints", rotatedPoints)
 
 
     splitFilename = theFilename.split('.')
