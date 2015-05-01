@@ -11,6 +11,11 @@ import numpy as np
 
 NEW_FILE_SUFFIX = "FIXED"
 
+# Color for pixels in corrected PNG not covered by a rotated
+# pixel from the original image
+DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 255) 
+SCALE_FACTOR = 200
+
 def showUsage():
     print("Usage:", argv[0], "filename")
 
@@ -134,7 +139,77 @@ def fileToMatrices(filename):
 
     assert len(imgList[0]) == (width * height)
 
-    return (np.array(imgList), np.array(colorList))
+    return (width, height, np.array(imgList), np.array(colorList))
+
+def projectToImagePlane(points):
+    """
+    Input: A 3xN numpy array of (r0, r1, r2) points, where each column is
+    a point in rotated coordinates
+
+    Output: A 3xN numpy array of points, where each column is the point
+    in the corresponding column in the input array, projected onto
+    the image plane such that r2 == 1
+    """
+    projectedPoints = np.copy(points)
+
+    for i in range(len(projectedPoints[0])):
+        projectedPoints[0][i] /= projectedPoints[2][i] 
+        projectedPoints[1][i] /= projectedPoints[2][i] 
+        projectedPoints[2][i] = 1
+
+    return projectedPoints
+
+
+def matricesToFile(points, colors, width, height, filename):
+    """
+    Translates point locations and colors to a flat image and
+    saves it to a png.
+    TODO Should the flattening of points to the image plane
+    be refactored out of this function?
+
+    Input: Takes points and colors arrays specified as follows,
+    and a filename.
+    
+    points is a 3xN matrix where each column is a point in the
+    rotated coordinate space.
+
+    colors is the corresponding 3xN matrix of colors for each point in the
+    point matrix. Where the columns again correspond to
+    each point and the rows are the R,G,B values of each pixel. 
+    """
+
+    assert len(points[0]) == len(colors[0])
+    
+    # Set up the image background
+    pixels = []
+    for y in range(height):
+        pixels.append([])
+        for x in range(width):
+            pixels[-1].append(50)
+            pixels[-1].append(50)
+            pixels[-1].append(50)
+
+    for i in range(len(points[0])):
+        assert points[2][i] == 1
+        y = int(points[1][i] * SCALE_FACTOR + 0.5)
+        x = 3 * int(points[0][i] * SCALE_FACTOR + 0.5)
+
+        # Only project the point if it lies between the image bounds
+        # TODO Should calculate image size based on extremes of
+        # rotated points.
+        if x >= 0 and x < width * 3 and y >= 0 and y < height:
+            #print("Setting pixel to colors[0][i]", colors[0][i])
+            #print("x", x)
+            #print("y", y)
+            #print("i", i)
+            pixels[y][x] = colors[0][i]
+            pixels[y][x+1] = colors[1][i]
+            pixels[y][x+2] = colors[2][i]
+
+
+    
+    with open(filename, 'wb') as f:
+        png.Writer(width=width, height=height).write(f, pixels) 
 
 if __name__ == "__main__":
     if len(argv) < 2:
@@ -147,7 +222,7 @@ if __name__ == "__main__":
     #(w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
     #(w,h,p,m) = (None,None,None,None)
 
-    (cameraPoints, cameraColors) = fileToMatrices(theFilename)
+    (width, height, cameraPoints, cameraColors) = fileToMatrices(theFilename)
 
     print("cameraPoints", cameraPoints)
     print("cameraColors", cameraColors)
@@ -194,11 +269,16 @@ if __name__ == "__main__":
     # Solve L * H = b
     hVec = np.linalg.lstsq(lMat, b)[0]
 
+    hVec = hVec.reshape((3,3))
+
     print("hVec:\n", hVec)
 
-    rotatedPoints = hVec * cameraPoints
+    rotatedPoints = np.dot(hVec, cameraPoints)
+    #rotatedPoints = cameraPoints
+    rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
 
     print("rotatedPoints", rotatedPoints)
+    print("rotatedAndProjectedPoints", rotatedAndProjectedPoints)
 
 
     splitFilename = theFilename.split('.')
@@ -207,6 +287,8 @@ if __name__ == "__main__":
 
     print("Saving new image as", newFilename)
 
-    writeToFile(newFilename, w, h, p)
+    matricesToFile(rotatedAndProjectedPoints, cameraColors, width, height, newFilename)
+
+    #writeToFile(newFilename, w, h, p)
    
      
