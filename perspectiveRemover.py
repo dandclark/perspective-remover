@@ -14,7 +14,8 @@ NEW_FILE_SUFFIX = "FIXED"
 # Color for pixels in corrected PNG not covered by a rotated
 # pixel from the original image
 DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 255) 
-SCALE_FACTOR = 200
+#SCALE_FACTOR = 200
+SCALE_FACTOR = 50
 
 def showUsage():
     print("Usage:", argv[0], "filename")
@@ -32,32 +33,19 @@ def getCornerCoordinates(theFilename, width, height, pixels):
     Returned as a 4-tuple of 2-tuple image coordinate pairs.
     """
     root = tkinter.Tk()
-    #w = tkinter.Label(root, text="Hello")
-    #w.pack()
-    #w.mainloop()
     frame = tkinter.Frame(root, bd=2, relief=tkinter.SUNKEN)
-    #frame.grid_rowconfigure(0, weight=1)
-    #frame.grid_columnconfigure(0, weight=1)
-    #xscroll = tkinter.Scrollbar(frame, orient=tkinter.HORIZONTAL)
-    #xscroll.grid(row=1, column=0, sticky=tkinter.E+tkinter.W)
-    #yscroll = tkinter.Scrollbar(frame)
-    #yscroll.grid(row=0, column=1, sticky=tkinter.N+tkinter.S)
-
-    
-    #canvas = tkinter.Canvas(frame, bd=0, xscrollcommand=xscroll.set,
-    #    yscrollcommand=yscroll.set)
-    canvas = tkinter.Canvas(frame, bd=0)
-    frame.pack(fill=tkinter.NONE)  
 
     # Keep a reference to image to prevent it from being garbage collected
+    # while we wait for the corner clicks
     global theImage
-
     theImage = tkinter.PhotoImage(file=theFilename)
+    
+    canvas = tkinter.Canvas(frame, bd=0, width=theImage.width(), height=theImage.height())
+    frame.pack(fill=tkinter.NONE)  
+
     canvas.create_image(10,10, image=theImage, anchor="nw")
     canvas.image = theImage
-    #canvas.pack(side=tkinter.LEFT, fill=tkinter.BOTH)
-    canvas.pack(expand=True, fill=tkinter.X)
-    canvas.config(scrollregion=canvas.bbox(tkinter.ALL))
+    canvas.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand='yes')
     
     corners = [] 
     
@@ -111,7 +99,6 @@ def fileToMatrices(filename):
     colorList = [[],[],[]]
 
     for y in range(height):
-        print("Writing row", y)
         row = next(pixels)
 
         assert len(row) / 3 == width
@@ -139,7 +126,7 @@ def fileToMatrices(filename):
 
     assert len(imgList[0]) == (width * height)
 
-    return (width, height, np.array(imgList), np.array(colorList))
+    return (width, height, pixels, np.array(imgList), np.array(colorList))
 
 def projectToImagePlane(points):
     """
@@ -222,7 +209,7 @@ if __name__ == "__main__":
     #(w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
     #(w,h,p,m) = (None,None,None,None)
 
-    (width, height, cameraPoints, cameraColors) = fileToMatrices(theFilename)
+    (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(theFilename)
 
     print("cameraPoints", cameraPoints)
     print("cameraColors", cameraColors)
@@ -235,10 +222,10 @@ if __name__ == "__main__":
     #print("p next:", next(p))
     #print("m next:", next(p))
 
-    #(c0, c1, c2, c3) = getCornerCoordinates(theFilename, w, h, p)
     
     # Test points for board.png
-    (c0, c1, c2, c3) = ((358,36),(329,597),(592,157),(580,483))
+    #(c0, c1, c2, c3) = ((358,36),(329,597),(592,157),(580,483))
+    (c0, c1, c2, c3) = getCornerCoordinates(theFilename, width, height, pixelArray)
     print("Corners", c0, c1, c2, c3)
 
     wVec = np.array([1,0,0,0,0,0,0,0,0])
