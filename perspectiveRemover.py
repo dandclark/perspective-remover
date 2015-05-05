@@ -15,7 +15,7 @@ NEW_FILE_SUFFIX = "FIXED"
 # pixel from the original image
 DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 255) 
 #SCALE_FACTOR = 200
-SCALE_FACTOR = 50
+SCALE_FACTOR = 1
 
 def showUsage():
     print("Usage:", argv[0], "filename")
@@ -27,7 +27,7 @@ def writeToFile(targetFilename, theWidth, theHeight, pixels):
 
 theImage = None
 
-def getCornerCoordinates(theFilename, width, height, pixels):
+def getCornerCoordinates(theFilename):
     """
     Prompt user for corners of a square on the image.
     Returned as a 4-tuple of 2-tuple image coordinate pairs.
@@ -165,38 +165,80 @@ def matricesToFile(points, colors, width, height, filename):
     each point and the rows are the R,G,B values of each pixel. 
     """
 
+    assert len(points[0]) > 0
     assert len(points[0]) == len(colors[0])
+
+    minX, maxX, minY, maxY = points[0][0], points[0][0], points[1][0], points[1][0]
+    for i in range(len(points[0])):
+        #print("Looking for min,max for point %f, %f" % (points[0][i], points[1][i]))
+        if points[0][i] < minX: minX = points[0][i]
+        if points[0][i] > maxX: maxX = points[0][i]
+        if points[1][i] < minY: minY = points[1][i]
+        if points[1][i] > maxY: maxY = points[1][i]
+
+    SCALE_FACTOR = 20
+
+    newWidth = int((maxX - minX) * SCALE_FACTOR) + 1
+    newHeight = int((maxY - minY) * SCALE_FACTOR) + 1
+
+    if newWidth > 1000:
+        newWidth = 1000
+    if newHeight > 1000:
+        newHeight = 1000
+
+    print("min, max X: %f, %f" % (minX, maxX))
+    print("min, max Y: %f, %f" % (minY, maxY))
+    print("newWidth, newHeight %f, %f" % (newWidth, newHeight))
     
     # Set up the image background
     pixels = []
-    for y in range(height):
+    for y in range(newHeight):
         pixels.append([])
-        for x in range(width):
-            pixels[-1].append(50)
-            pixels[-1].append(50)
-            pixels[-1].append(50)
+        for x in range(newWidth):
+            pixels[-1].append(255)
+            pixels[-1].append(0)
+            pixels[-1].append(0)
 
     for i in range(len(points[0])):
         assert points[2][i] == 1
-        y = int(points[1][i] * SCALE_FACTOR + 0.5)
-        x = 3 * int(points[0][i] * SCALE_FACTOR + 0.5)
+        #y = (points[1][i] - minY) * (newHeight / (maxY - minY))
+        #x = (points[0][i] - minX) * (newWidth / (maxX - minX))
+        #y = (points[1][i] - minY) * 10
+        #x = (points[0][i] - minX) * 10
+        y = (points[1][i] - minY) * SCALE_FACTOR
+        x = (points[0][i] - minX) * SCALE_FACTOR
+
+        # Round to integers
+        y = int(y + 0.5)
+        x = 3 * min(int(x + 0.5), newWidth - 1)
 
         # Only project the point if it lies between the image bounds
         # TODO Should calculate image size based on extremes of
         # rotated points.
-        if x >= 0 and x < width * 3 and y >= 0 and y < height:
+        if x >= 0 and x < newWidth * 3 and y >= 0 and y < newHeight:
             #print("Setting pixel to colors[0][i]", colors[0][i])
+            #print("i", i)
             #print("x", x)
             #print("y", y)
-            #print("i", i)
             pixels[y][x] = colors[0][i]
             pixels[y][x+1] = colors[1][i]
             pixels[y][x+2] = colors[2][i]
-
+            pass
+            #pixels[y][x+2]
+            #colors[2][i]
+        else:
+            print("x,y (%i,%i)" % (x,y))
+            print("newWidth, newHeight %i,%i" % (newWidth, newHeight))
+            print("newWidth * 3", newWidth * 3) 
+            print("minX, maxX %f,%f" % (minX, maxX))
+            print("minY, maxY %f,%f" % (minY, maxY))
+            print("points[0][i]", points[0][i])
+            print("points[1][i]", points[1][i])
+            assert False
 
     
     with open(filename, 'wb') as f:
-        png.Writer(width=width, height=height).write(f, pixels) 
+        png.Writer(width=newWidth, height=newHeight).write(f, pixels) 
 
 if __name__ == "__main__":
     if len(argv) < 2:
@@ -224,8 +266,8 @@ if __name__ == "__main__":
 
     
     # Test points for board.png
-    #(c0, c1, c2, c3) = ((358,36),(329,597),(592,157),(580,483))
-    (c0, c1, c2, c3) = getCornerCoordinates(theFilename, width, height, pixelArray)
+    #(c0, c1, c2, c3) = ((358,36),(592,157),(580,483),(329,597))
+    (c0, c1, c2, c3) = getCornerCoordinates(theFilename)
     print("Corners", c0, c1, c2, c3)
 
     wVec = np.array([1,0,0,0,0,0,0,0,0])
@@ -233,12 +275,12 @@ if __name__ == "__main__":
     equationsList = [
         makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
         makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
-        makeEquationsForPoints(c1[0], c1[1], 0, 1)[0],
-        makeEquationsForPoints(c1[0], c1[1], 0, 1)[1],
-        makeEquationsForPoints(c2[0], c2[1], 1, 0)[0],
-        makeEquationsForPoints(c2[0], c2[1], 1, 0)[1],
-        makeEquationsForPoints(c3[0], c3[1], 1, 1)[0],
-        makeEquationsForPoints(c3[0], c3[1], 1, 1)[1],
+        makeEquationsForPoints(c1[0], c1[1], 1, 0)[0],
+        makeEquationsForPoints(c1[0], c1[1], 1, 0)[1],
+        makeEquationsForPoints(c2[0], c2[1], 1, 1)[0],
+        makeEquationsForPoints(c2[0], c2[1], 1, 1)[1],
+        makeEquationsForPoints(c3[0], c3[1], 0, 1)[0],
+        makeEquationsForPoints(c3[0], c3[1], 0, 1)[1],
         wVec
     ] 
     #print("Got equationsList", equationsList)
@@ -267,13 +309,13 @@ if __name__ == "__main__":
     print("rotatedPoints", rotatedPoints)
     print("rotatedAndProjectedPoints", rotatedAndProjectedPoints)
 
-
     splitFilename = theFilename.split('.')
     newFilename= ".".join(splitFilename[:-1]) + "." + NEW_FILE_SUFFIX + \
         "." + splitFilename[-1]
 
     print("Saving new image as", newFilename)
 
+    #matricesToFile(cameraPoints, cameraColors, width, height, newFilename)
     matricesToFile(rotatedAndProjectedPoints, cameraColors, width, height, newFilename)
 
     #writeToFile(newFilename, w, h, p)
