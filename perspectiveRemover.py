@@ -170,16 +170,19 @@ def matricesToFile(points, colors, width, height, filename):
 
     minX, maxX, minY, maxY = points[0][0], points[0][0], points[1][0], points[1][0]
     for i in range(len(points[0])):
-        #print("Looking for min,max for point %f, %f" % (points[0][i], points[1][i]))
         if points[0][i] < minX: minX = points[0][i]
         if points[0][i] > maxX: maxX = points[0][i]
         if points[1][i] < minY: minY = points[1][i]
         if points[1][i] > maxY: maxY = points[1][i]
 
-    SCALE_FACTOR = 20
+    # We scale all points by the average for both axes of the ratio of the original
+    # axis size and the magnitude of the range of points with respect to that axis
+    # among the converted image points. 
+    scalingFactor = ((width / (maxX - minX)) + (height / (maxY - minY))) / 2
+    print("Using scalingFactor", scalingFactor)
 
-    newWidth = int((maxX - minX) * SCALE_FACTOR) + 1
-    newHeight = int((maxY - minY) * SCALE_FACTOR) + 1
+    newWidth = int((maxX - minX) * scalingFactor) + 1
+    newHeight = int((maxY - minY) * scalingFactor) + 1
 
     if newWidth > 1000:
         newWidth = 1000
@@ -201,12 +204,8 @@ def matricesToFile(points, colors, width, height, filename):
 
     for i in range(len(points[0])):
         assert points[2][i] == 1
-        #y = (points[1][i] - minY) * (newHeight / (maxY - minY))
-        #x = (points[0][i] - minX) * (newWidth / (maxX - minX))
-        #y = (points[1][i] - minY) * 10
-        #x = (points[0][i] - minX) * 10
-        y = (points[1][i] - minY) * SCALE_FACTOR
-        x = (points[0][i] - minX) * SCALE_FACTOR
+        y = (points[1][i] - minY) * scalingFactor
+        x = (points[0][i] - minX) * scalingFactor
 
         # Round to integers
         y = int(y + 0.5)
@@ -216,16 +215,9 @@ def matricesToFile(points, colors, width, height, filename):
         # TODO Should calculate image size based on extremes of
         # rotated points.
         if x >= 0 and x < newWidth * 3 and y >= 0 and y < newHeight:
-            #print("Setting pixel to colors[0][i]", colors[0][i])
-            #print("i", i)
-            #print("x", x)
-            #print("y", y)
             pixels[y][x] = colors[0][i]
             pixels[y][x+1] = colors[1][i]
             pixels[y][x+2] = colors[2][i]
-            pass
-            #pixels[y][x+2]
-            #colors[2][i]
         else:
             print("x,y (%i,%i)" % (x,y))
             print("newWidth, newHeight %i,%i" % (newWidth, newHeight))
