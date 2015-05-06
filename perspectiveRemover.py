@@ -14,8 +14,10 @@ NEW_FILE_SUFFIX = "FIXED"
 # Color for pixels in corrected PNG not covered by a rotated
 # pixel from the original image
 DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 255) 
-#SCALE_FACTOR = 200
-SCALE_FACTOR = 1
+
+# Cap the size of each axis of the adjusted image at this number of pixels
+MAX_IMAGE_SIZE = 2000
+
 
 def showUsage():
     print("Usage:", argv[0], "filename")
@@ -189,10 +191,8 @@ def matricesToFile(points, colors, width, height, filename):
     newWidth = int((maxX - minX) * scalingFactor) + 1
     newHeight = int((maxY - minY) * scalingFactor) + 1
 
-    if newWidth > 1000:
-        newWidth = 1000
-    if newHeight > 1000:
-        newHeight = 1000
+    newWidth = min(newWidth, MAX_IMAGE_SIZE)
+    newHeight = min(newHeight, MAX_IMAGE_SIZE)
 
     print("min, max X: %f, %f" % (minX, maxX))
     print("min, max Y: %f, %f" % (minY, maxY))
@@ -280,18 +280,13 @@ if __name__ == "__main__":
         makeEquationsForPoints(c3[0], c3[1], 0, 1)[1],
         wVec
     ] 
-    #print("Got equationsList", equationsList)
-    #for equation in equationsList:
-    #    print(equation)
 
-    #lMat = np.concatenate(equationsList)
     lMat = np.vstack(equationsList)
     b = np.array([0,0,0,0,0,0,0,0,1])
 
     print("lMat:\n", lMat)
     print("b:\n", b)
 
- 
     # Solve L * H = b
     hVec = np.linalg.lstsq(lMat, b)[0]
 
@@ -300,7 +295,6 @@ if __name__ == "__main__":
     print("hVec:\n", hVec)
 
     rotatedPoints = np.dot(hVec, cameraPoints)
-    #rotatedPoints = cameraPoints
     rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
 
     print("rotatedPoints", rotatedPoints)
@@ -312,7 +306,6 @@ if __name__ == "__main__":
 
     print("Saving new image as", newFilename)
 
-    #matricesToFile(cameraPoints, cameraColors, width, height, newFilename)
     matricesToFile(rotatedAndProjectedPoints, cameraColors, width, height, newFilename)
 
     #writeToFile(newFilename, w, h, p)
