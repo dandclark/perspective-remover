@@ -91,9 +91,12 @@ def fileToMatrices(filename):
     original image, where the columns again correspond to
     each point and the rows are the R,G,B values of each pixel. 
     """
-    (width, height, pixels, meta) = png.Reader(filename = theFilename).asRGB() 
-
-    #assert len(pixels) / 3 == height
+    
+    # We retrieve the alpha channel here even though we're not going to use it
+    # because asRGB (which doesn't provide the alpha channel) will throw if
+    # given an image with an alpha channel.
+    # TODO Should we use the alpha channel as well?
+    (width, height, pixels, meta) = png.Reader(filename = theFilename).asRGBA() 
 
     imgList = [[],[],[]]
     colorList = [[],[],[]]
@@ -101,7 +104,8 @@ def fileToMatrices(filename):
     for y in range(height):
         row = next(pixels)
 
-        assert len(row) / 3 == width
+        # Each pixel has R, G, B, and Alpha.
+        assert len(row) / 4 == width
 
         for x in range(0, width):
             pixelIndex = y*width + x
@@ -114,9 +118,10 @@ def fileToMatrices(filename):
             imgList[1].append(y)
             imgList[2].append(1)
             
-            colorList[0].append(row[x*3])
-            colorList[1].append(row[x*3 + 1])
-            colorList[2].append(row[x*3 + 2])
+            colorList[0].append(row[x*4])
+            colorList[1].append(row[x*4 + 1])
+            colorList[2].append(row[x*4 + 2])
+            # And we skip the alpha channel
 
     print("len(imgList[0]", len(imgList[0]))
     print("len(colorList[1]", len(colorList[1]))
