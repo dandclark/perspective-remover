@@ -154,7 +154,7 @@ def projectToImagePlane(points):
     return projectedPoints
 
 
-def matricesToFile(points, colors, width, height, filename):
+def matricesToFile(points, colors, width, height, filename, shouldInterpolateMissingPixels):
     """
     Translates point locations and colors to a flat image and
     saves it to a png.
@@ -188,8 +188,8 @@ def matricesToFile(points, colors, width, height, filename):
     scalingFactor = ((width / (maxX - minX)) + (height / (maxY - minY))) / 2
     print("Using scalingFactor", scalingFactor)
 
-    newWidth = int((maxX - minX) * scalingFactor) + 1
-    newHeight = int((maxY - minY) * scalingFactor) + 1
+    newWidth = int((maxX - minX) * scalingFactor) + 3
+    newHeight = int((maxY - minY) * scalingFactor) + 2
 
     newWidth = min(newWidth, MAX_IMAGE_SIZE)
     newHeight = min(newHeight, MAX_IMAGE_SIZE)
@@ -203,9 +203,15 @@ def matricesToFile(points, colors, width, height, filename):
     for y in range(newHeight):
         pixels.append([])
         for x in range(newWidth):
-            pixels[-1].append(255)
-            pixels[-1].append(0)
-            pixels[-1].append(0)
+            if shouldInterpolateMissingPixels:
+                # We'll fill these in later
+                pixels[-1].append(None)
+                pixels[-1].append(None)
+                pixels[-1].append(None)
+            else:
+                pixels[-1].append(DEFAULT_IMAGE_BACKGROUND_RGB[0])
+                pixels[-1].append(DEFAULT_IMAGE_BACKGROUND_RGB[1])
+                pixels[-1].append(DEFAULT_IMAGE_BACKGROUND_RGB[2])
 
     for i in range(len(points[0])):
         assert points[2][i] == 1
@@ -233,9 +239,51 @@ def matricesToFile(points, colors, width, height, filename):
             print("points[1][i]", points[1][i])
             assert False
 
-    
+    if shouldInterpolateMissingPixels:
+        pixels = interpolateMissingPixels(newWidth, newHeight, pixels)
+
+ 
     with open(filename, 'wb') as f:
         png.Writer(width=newWidth, height=newHeight).write(f, pixels) 
+
+def interpolateMissingPixels(width, height, image):
+    """
+    Input: Image of dimensions (width,height) in boxed row flat pixel format, potentially
+    with some pixels with RGB values of (None, None, None).
+
+    Output: The same image with the missing pixels filled in from an average of the
+    surrounding pixels
+    """
+    for y in range(height):
+        for x in range(width):
+           if image[y][x*3] is None:
+                colorTotal = [0, 0, 0]
+                numAdjacentPixels = 0
+                if y > 0:
+                    if x > 0 and image[y-1][x*3-3] is not None:
+                        colorTotal = [t + c for t,c in zip(colorTotal, image[y-1][x*3-3:x*3])]
+                        numAdjacentPixels += 1
+                    if x < width - 1 and image[y-1][x*3+3] is not None:
+                        colorTotal = [t + c for t,c in zip(colorTotal, image[y-1][x*3+3:x*3+6])]
+                        numAdjacentPixels += 1
+                if y < height - 1:
+                    if x > 0 and image[y+1][x*3-3] is not None:
+                        colorTotal = [t + c for t,c in zip(colorTotal, image[y+1][x*3-3:x*3])]
+                        numAdjacentPixels += 1
+                    if x < width - 1 and image[y+1][x*3+3] is not None:
+                        colorTotal = [t + c for t,c in zip(colorTotal, image[y+1][x*3+3:x*3+6])]
+                        numAdjacentPixels += 1
+
+                if numAdjacentPixels > 0:
+                    colorAverage = [int(c / numAdjacentPixels) for c in colorTotal]
+                else:
+                    colorAverage = DEFAULT_IMAGE_BACKGROUND_RGB
+
+                image[y][x*3] = colorAverage[0]
+                image[y][x*3 + 1] = colorAverage[1]
+                image[y][x*3 + 2] = colorAverage[2]
+    return image
+
 
 if __name__ == "__main__":
     if len(argv) < 2:
@@ -306,7 +354,7 @@ if __name__ == "__main__":
 
     print("Saving new image as", newFilename)
 
-    matricesToFile(rotatedAndProjectedPoints, cameraColors, width, height, newFilename)
+    matricesToFile(rotatedAndProjectedPoints, cameraColors, width, height, newFilename, True)
 
     #writeToFile(newFilename, w, h, p)
    
