@@ -63,7 +63,6 @@ def getCornerCoordinates(theFilename):
     
     print("Click the corners of a rectangle in the image") 
     root.mainloop()
-    print("Got image corners")
 
     return (corner for corner in corners)
 
@@ -111,7 +110,6 @@ def fileToMatrices(filename):
 
         for x in range(0, width):
             pixelIndex = y*width + x
-            #print("Writing pixel at (%i, %i)" % (x, y))
             # Memory locality/cache performance is probably terrible
             # for this, should reevalutate if this turns out to
             # be a perf issue as there are definitely better ways
@@ -292,26 +290,13 @@ if __name__ == "__main__":
 
     theFilename = argv[1]
     print("Processing file:", theFilename)
-    
-    #(w, h, p, m) = png.Reader(filename = theFilename).asRGB() 
-    #(w,h,p,m) = (None,None,None,None)
 
     (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(theFilename)
 
     print("cameraPoints", cameraPoints)
     print("cameraColors", cameraColors)
-
-    #print("w:", w)
-    #print("h:", h)
-    #assert len(p) == h
-    #assert (len(next(p)) / 3) == w
-    #print("p len next:", len(next(p)))
-    #print("p next:", next(p))
-    #print("m next:", next(p))
-
     
     # Test points for board.png
-    #(c0, c1, c2, c3) = ((358,36),(592,157),(580,483),(329,597))
     (c0, c1, c2, c3) = getCornerCoordinates(theFilename)
     print("Corners", c0, c1, c2, c3)
 
@@ -332,15 +317,10 @@ if __name__ == "__main__":
     lMat = np.vstack(equationsList)
     b = np.array([0,0,0,0,0,0,0,0,1])
 
-    print("lMat:\n", lMat)
-    print("b:\n", b)
-
     # Solve L * H = b
     hVec = np.linalg.lstsq(lMat, b)[0]
 
     hVec = hVec.reshape((3,3))
-
-    print("hVec:\n", hVec)
 
     rotatedPoints = np.dot(hVec, cameraPoints)
     rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
