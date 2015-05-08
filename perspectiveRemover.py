@@ -2,10 +2,7 @@
 
 import png
 from sys import argv
-#from tkfiledialog import askopenfilename
 import tkinter
-#import imagetk
-#from PIL import Image, ImageTk
 import numpy as np
 
 
@@ -123,12 +120,6 @@ def fileToMatrices(filename):
             colorList[2].append(row[x*4 + 2])
             # And we skip the alpha channel
 
-    print("len(imgList[0]", len(imgList[0]))
-    print("len(colorList[1]", len(colorList[1]))
-    print("width", width)
-    print("height", height)
-    print("width * height", width * height)
-
     assert len(imgList[0]) == (width * height)
 
     return (width, height, pixels, np.array(imgList), np.array(colorList))
@@ -152,24 +143,24 @@ def projectToImagePlane(points):
     return projectedPoints
 
 
-def matricesToFile(points, colors, width, height, filename, shouldInterpolateMissingPixels):
+def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels):
     """
-    Translates point locations and colors to a flat image and
-    saves it to a png.
-    TODO Should the flattening of points to the image plane
-    be refactored out of this function?
-
-    Input: Takes points and colors arrays specified as follows,
-    and a filename.
+    Input: Points and colors arrays, where points is a 3xN matrix whose 
+    columns are each a point in the rotated coordinate space.
     
-    points is a 3xN matrix where each column is a point in the
-    rotated coordinate space.
+    width and height are the dimensions of the original image, and will be
+    considered when calculating the rotated image's size.
+
+    If shouldInterpolateMissingPixels == True, then we'll do some averaging
+    to figure out values for missing pixels in the rotated image, else
+    we'll fill these in with default values.
 
     colors is the corresponding 3xN matrix of colors for each point in the
-    point matrix. Where the columns again correspond to
-    each point and the rows are the R,G,B values of each pixel. 
-    """
+    point matrix, where the columns again correspond to
+    each point and the rows are the R,G,B values of each pixel.
 
+    Output: Returns the resulting image in boxed row flat pixel format.
+    """
     assert len(points[0]) > 0
     assert len(points[0]) == len(colors[0])
 
@@ -189,6 +180,7 @@ def matricesToFile(points, colors, width, height, filename, shouldInterpolateMis
     newWidth = int((maxX - minX) * scalingFactor) + 3
     newHeight = int((maxY - minY) * scalingFactor) + 2
 
+    # Cap the new image at a maximum size
     newWidth = min(newWidth, MAX_IMAGE_SIZE)
     newHeight = min(newHeight, MAX_IMAGE_SIZE)
 
@@ -220,29 +212,23 @@ def matricesToFile(points, colors, width, height, filename, shouldInterpolateMis
         y = int(y + 0.5)
         x = 3 * min(int(x + 0.5), newWidth - 1)
 
-        # Only project the point if it lies between the image bounds
-        # TODO Should calculate image size based on extremes of
-        # rotated points.
-        if x >= 0 and x < newWidth * 3 and y >= 0 and y < newHeight:
-            pixels[y][x] = colors[0][i]
-            pixels[y][x+1] = colors[1][i]
-            pixels[y][x+2] = colors[2][i]
-        else:
-            print("x,y (%i,%i)" % (x,y))
-            print("newWidth, newHeight %i,%i" % (newWidth, newHeight))
-            print("newWidth * 3", newWidth * 3) 
-            print("minX, maxX %f,%f" % (minX, maxX))
-            print("minY, maxY %f,%f" % (minY, maxY))
-            print("points[0][i]", points[0][i])
-            print("points[1][i]", points[1][i])
-            assert False
+        #print("x,y (%i,%i)" % (x,y))
+        #print("newWidth, newHeight %i,%i" % (newWidth, newHeight))
+        #print("newWidth * 3", newWidth * 3) 
+        #print("minX, maxX %f,%f" % (minX, maxX))
+        #print("minY, maxY %f,%f" % (minY, maxY))
+        #print("points[0][i]", points[0][i])
+        #print("points[1][i]", points[1][i])
+        assert x >= 0 and x < newWidth * 3 and y >= 0 and y < newHeight
+        pixels[y][x] = colors[0][i]
+        pixels[y][x+1] = colors[1][i]
+        pixels[y][x+2] = colors[2][i]
 
     if shouldInterpolateMissingPixels:
         pixels = interpolateMissingPixels(newWidth, newHeight, pixels)
 
+    return pixels
  
-    with open(filename, 'wb') as f:
-        png.Writer(width=newWidth, height=newHeight).write(f, pixels) 
 
 def interpolateMissingPixels(width, height, image):
     """
@@ -334,8 +320,9 @@ if __name__ == "__main__":
 
     print("Saving new image as", newFilename)
 
-    matricesToFile(rotatedAndProjectedPoints, cameraColors, width, height, newFilename, True)
+    image = pointsToImage(rotatedAndProjectedPoints, cameraColors, width, height, True)
+    assert len(image[0]) % 3 == 0
 
-    #writeToFile(newFilename, w, h, p)
+    with open(newFilename, 'wb') as f:
+        png.Writer(width=int(len(image[0]) / 3), height=len(image)).write(f, image) 
    
-     
