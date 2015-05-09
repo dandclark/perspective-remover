@@ -1,4 +1,44 @@
 #!/usr/bin/python3
+#
+# perspectiveRemover.py
+#
+# Copyright (C) 2015 Daniel Clark
+#
+# LICENSE (The MIT License)
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+"""
+Python script for removing perspective from an image taken at an angle
+with respect to the subject.
+The user provides corners of a rectangle in the angled image through mouse
+clicks.  The script creates the corresponding image in a new coordinate
+frame such that the image is rotated to directly face the camera.
+
+Uses the method developed in the Perspective Removal lab of Philip Klein's
+excellent Linear Algebra course at https://www.coursera.org/course/matrix
+
+Uses Johann C Rocholl's png.py PNG encoder/decoder.
+"""
 
 import png
 from sys import argv
@@ -93,7 +133,7 @@ def fileToMatrices(filename):
     # We retrieve the alpha channel here even though we're not going to use it
     # because asRGB (which doesn't provide the alpha channel) will throw if
     # given an image with an alpha channel.
-    # TODO Should we use the alpha channel as well?
+    # TODO Should we actually make use of the alpha channel as well?
     (width, height, pixels, meta) = png.Reader(filename = theFilename).asRGBA() 
 
     imgList = [[],[],[]]
@@ -118,7 +158,7 @@ def fileToMatrices(filename):
             colorList[0].append(row[x*4])
             colorList[1].append(row[x*4 + 1])
             colorList[2].append(row[x*4 + 2])
-            # And we skip the alpha channel
+            # ...and we skip the alpha channel
 
     assert len(imgList[0]) == (width * height)
 
@@ -282,7 +322,6 @@ if __name__ == "__main__":
     print("cameraPoints", cameraPoints)
     print("cameraColors", cameraColors)
     
-    # Test points for board.png
     (c0, c1, c2, c3) = getCornerCoordinates(theFilename)
     print("Corners", c0, c1, c2, c3)
 
