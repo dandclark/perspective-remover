@@ -40,13 +40,15 @@ excellent Linear Algebra course at https://www.coursera.org/course/matrix
 Uses Johann C Rocholl's png.py PNG encoder/decoder.
 """
 
-import png
+import argparse
 from sys import argv
 import tkinter
 import numpy as np
 
+import png
 
-NEW_FILE_SUFFIX = "FIXED"
+
+DEFAULT_NEW_FILE_SUFFIX = "FIXED"
 
 # Color for pixels in corrected PNG not covered by a rotated
 # pixel from the original image
@@ -56,8 +58,15 @@ DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 255)
 MAX_IMAGE_SIZE = 2000
 
 
-def showUsage():
-    print("Usage:", argv[0], "filename")
+def getArgs():
+    argParser = argparse.ArgumentParser("Remove perspective from image of a flat surface.")
+    argParser.add_argument("-s", "--suffix", type=str, default=DEFAULT_NEW_FILE_SUFFIX,
+        help='Suffix for altered image')
+    argParser.add_argument('filename', type=str, help="Filename of image to alter")
+    args = argParser.parse_args()
+
+    return args
+
 
 def writeToFile(targetFilename, theWidth, theHeight, pixels):
     """Expects pixels in boxed row flat pixel form"""
@@ -115,7 +124,7 @@ def makeEquationsForPoints(imageX, imageY, w1, w2):
     v = np.array([0,0,0,-imageX,-imageY,-1,w2*imageX,w2*imageY,w2])
     return [u,v]
 
-def fileToMatrices(filename):
+def fileToMatrices(theFilename):
     """
     Input: Name of png file
     Output: (points, colors) tuple.
@@ -252,13 +261,6 @@ def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels)
         y = int(y + 0.5)
         x = 3 * min(int(x + 0.5), newWidth - 1)
 
-        #print("x,y (%i,%i)" % (x,y))
-        #print("newWidth, newHeight %i,%i" % (newWidth, newHeight))
-        #print("newWidth * 3", newWidth * 3) 
-        #print("minX, maxX %f,%f" % (minX, maxX))
-        #print("minY, maxY %f,%f" % (minY, maxY))
-        #print("points[0][i]", points[0][i])
-        #print("points[1][i]", points[1][i])
         assert x >= 0 and x < newWidth * 3 and y >= 0 and y < newHeight
         pixels[y][x] = colors[0][i]
         pixels[y][x+1] = colors[1][i]
@@ -310,19 +312,16 @@ def interpolateMissingPixels(width, height, image):
 
 
 if __name__ == "__main__":
-    if len(argv) < 2:
-        showUsage()
-        exit()
 
-    theFilename = argv[1]
-    print("Processing file:", theFilename)
+    args = getArgs()
 
-    (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(theFilename)
+    print("Processing file:", args.filename)
+    (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(args.filename)
 
     print("cameraPoints", cameraPoints)
     print("cameraColors", cameraColors)
     
-    (c0, c1, c2, c3) = getCornerCoordinates(theFilename)
+    (c0, c1, c2, c3) = getCornerCoordinates(args.filename)
     print("Corners", c0, c1, c2, c3)
 
     wVec = np.array([1,0,0,0,0,0,0,0,0])
@@ -353,8 +352,8 @@ if __name__ == "__main__":
     print("rotatedPoints", rotatedPoints)
     print("rotatedAndProjectedPoints", rotatedAndProjectedPoints)
 
-    splitFilename = theFilename.split('.')
-    newFilename= ".".join(splitFilename[:-1]) + "." + NEW_FILE_SUFFIX + \
+    splitFilename = args.filename.split('.')
+    newFilename= ".".join(splitFilename[:-1]) + "." + args.suffix + \
         "." + splitFilename[-1]
 
     print("Saving new image as", newFilename)
