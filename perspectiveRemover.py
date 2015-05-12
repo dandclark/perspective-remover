@@ -63,12 +63,12 @@ def getArgs():
     Reads and validates command line parameters from sys.argv.  Halts the program
     if any invalid values are received.
     """
-    argParser = argparse.ArgumentParser("Remove perspective from image of a flat surface.")
+    argParser = argparse.ArgumentParser(description="Remove perspective from image of a flat surface.")
     argParser.add_argument("-s", "--suffix", type=str, default=DEFAULT_NEW_FILE_SUFFIX,
         help="Suffix for altered image")
     argParser.add_argument("filename", type=str, help="Filename of image to alter")
     argParser.add_argument("-b", "--backgroundRGB", type=int, nargs=3,
-        default=DEFAULT_IMAGE_BACKGROUND_RGB)
+        default=DEFAULT_IMAGE_BACKGROUND_RGB, help="0-255 R,G,B channel values for altered image background")
     args = argParser.parse_args()
     print(args)
 
