@@ -66,9 +66,9 @@ def getArgs():
     argParser = argparse.ArgumentParser(description="Remove perspective from image of a flat surface.")
     argParser.add_argument("-s", "--suffix", type=str, default=DEFAULT_NEW_FILE_SUFFIX,
         help="Suffix for altered image")
-    argParser.add_argument("filename", type=str, help="Filename of image to alter")
     argParser.add_argument("-b", "--backgroundRGB", type=int, nargs=3,
         default=DEFAULT_IMAGE_BACKGROUND_RGB, help="0-255 R,G,B channel values for altered image background")
+    argParser.add_argument("filenames", type=str, nargs="+", help="Filename(s) of image(s) to alter")
     args = argParser.parse_args()
     print(args)
 
@@ -85,6 +85,8 @@ def writeToFile(targetFilename, theWidth, theHeight, pixels):
     with open(targetFilename, 'wb') as f:
         png.Writer(width=theWidth, height=theHeight).write(f, p) 
 
+# We'll need to keep a reference to the image to prevent it from being
+# garbage collected during the event loop waiting for the clicks.
 theImage = None
 
 def getCornerCoordinates(theFilename):
@@ -92,16 +94,14 @@ def getCornerCoordinates(theFilename):
     Prompt user for corners of a square on the image.
     Returned as a 4-tuple of 2-tuple image coordinate pairs.
     """
-    root = tkinter.Tk()
-    frame = tkinter.Frame(root, bd=2, relief=tkinter.SUNKEN)
+    tkinterRoot = tkinter.Tk()
 
     # Keep a reference to image to prevent it from being garbage collected
     # while we wait for the corner clicks
     global theImage
     theImage = tkinter.PhotoImage(file=theFilename)
     
-    canvas = tkinter.Canvas(frame, bd=0, width=theImage.width(), height=theImage.height())
-    frame.pack(fill=tkinter.NONE)  
+    canvas = tkinter.Canvas(tkinterRoot, bd=0, width=theImage.width(), height=theImage.height())
 
     canvas.create_image(10,10, image=theImage, anchor="nw")
     canvas.image = theImage
@@ -110,17 +110,17 @@ def getCornerCoordinates(theFilename):
     corners = [] 
     
     def printCoords(event):
-        nonlocal root, corners
+        nonlocal tkinterRoot, corners
         print (event.x, event.y)
         print("Clicked corner at (%d,%d)" % (event.x, event.y))
         corners.append((event.x, event.y))
         if(len(corners) == 4):
-            root.quit()
+            tkinterRoot.destroy()
 
     canvas.bind("<Button 1>", printCoords)
     
     print("Click the corners of a rectangle in the image") 
-    root.mainloop()
+    tkinterRoot.mainloop()
 
     return (corner for corner in corners)
 
@@ -327,52 +327,55 @@ if __name__ == "__main__":
 
     args = getArgs()
 
-    print("Processing file:", args.filename)
-    (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(args.filename)
+    print("Processing files:", args.filenames)
 
-    print("cameraPoints", cameraPoints)
-    print("cameraColors", cameraColors)
-    
-    (c0, c1, c2, c3) = getCornerCoordinates(args.filename)
-    print("Corners", c0, c1, c2, c3)
+    # TODO: Would be a better user experience to get corner clicks for all images before
+    # we start any processing of the images, so that the user doesn't need to
+    # wait around for the image processing to get done between each set of corner clicks.
+    for filename in args.filenames:
+        (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(filename)
 
-    wVec = np.array([1,0,0,0,0,0,0,0,0])
+        print("Getting corners for image", filename)
+        (c0, c1, c2, c3) = getCornerCoordinates(filename)
+        print("Corners", c0, c1, c2, c3)
 
-    equationsList = [
-        makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
-        makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
-        makeEquationsForPoints(c1[0], c1[1], 1, 0)[0],
-        makeEquationsForPoints(c1[0], c1[1], 1, 0)[1],
-        makeEquationsForPoints(c2[0], c2[1], 1, 1)[0],
-        makeEquationsForPoints(c2[0], c2[1], 1, 1)[1],
-        makeEquationsForPoints(c3[0], c3[1], 0, 1)[0],
-        makeEquationsForPoints(c3[0], c3[1], 0, 1)[1],
-        wVec
-    ] 
+        wVec = np.array([1,0,0,0,0,0,0,0,0])
 
-    lMat = np.vstack(equationsList)
-    b = np.array([0,0,0,0,0,0,0,0,1])
+        equationsList = [
+            makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
+            makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
+            makeEquationsForPoints(c1[0], c1[1], 1, 0)[0],
+            makeEquationsForPoints(c1[0], c1[1], 1, 0)[1],
+            makeEquationsForPoints(c2[0], c2[1], 1, 1)[0],
+            makeEquationsForPoints(c2[0], c2[1], 1, 1)[1],
+            makeEquationsForPoints(c3[0], c3[1], 0, 1)[0],
+            makeEquationsForPoints(c3[0], c3[1], 0, 1)[1],
+            wVec
+        ] 
 
-    # Solve L * H = b
-    hVec = np.linalg.lstsq(lMat, b)[0]
+        lMat = np.vstack(equationsList)
+        b = np.array([0,0,0,0,0,0,0,0,1])
 
-    hVec = hVec.reshape((3,3))
+        # Solve L * H = b
+        hVec = np.linalg.lstsq(lMat, b)[0]
 
-    rotatedPoints = np.dot(hVec, cameraPoints)
-    rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
+        hVec = hVec.reshape((3,3))
 
-    print("rotatedPoints", rotatedPoints)
-    print("rotatedAndProjectedPoints", rotatedAndProjectedPoints)
+        rotatedPoints = np.dot(hVec, cameraPoints)
+        rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
 
-    splitFilename = args.filename.split('.')
-    newFilename= ".".join(splitFilename[:-1]) + "." + args.suffix + \
-        "." + splitFilename[-1]
+        print("rotatedPoints", rotatedPoints)
+        print("rotatedAndProjectedPoints", rotatedAndProjectedPoints)
 
-    print("Saving new image as", newFilename)
+        splitFilename = filename.split('.')
+        newFilename= ".".join(splitFilename[:-1]) + "." + args.suffix + \
+            "." + splitFilename[-1]
 
-    image = pointsToImage(rotatedAndProjectedPoints, cameraColors, width, height, True, args.backgroundRGB)
-    assert len(image[0]) % 3 == 0
+        print("Saving new image as", newFilename)
 
-    with open(newFilename, 'wb') as f:
-        png.Writer(width=int(len(image[0]) / 3), height=len(image)).write(f, image) 
+        image = pointsToImage(rotatedAndProjectedPoints, cameraColors, width, height, True, args.backgroundRGB)
+        assert len(image[0]) % 3 == 0
+
+        with open(newFilename, 'wb') as f:
+            png.Writer(width=int(len(image[0]) / 3), height=len(image)).write(f, image) 
    
