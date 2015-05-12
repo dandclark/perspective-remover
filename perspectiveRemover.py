@@ -52,18 +52,30 @@ DEFAULT_NEW_FILE_SUFFIX = "FIXED"
 
 # Color for pixels in corrected PNG not covered by a rotated
 # pixel from the original image
-DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 255) 
+DEFAULT_IMAGE_BACKGROUND_RGB = (0, 0, 0) 
 
 # Cap the size of each axis of the adjusted image at this number of pixels
 MAX_IMAGE_SIZE = 2000
 
 
 def getArgs():
+    """
+    Reads and validates command line parameters from sys.argv.  Halts the program
+    if any invalid values are received.
+    """
     argParser = argparse.ArgumentParser("Remove perspective from image of a flat surface.")
     argParser.add_argument("-s", "--suffix", type=str, default=DEFAULT_NEW_FILE_SUFFIX,
-        help='Suffix for altered image')
-    argParser.add_argument('filename', type=str, help="Filename of image to alter")
+        help="Suffix for altered image")
+    argParser.add_argument("filename", type=str, help="Filename of image to alter")
+    argParser.add_argument("-b", "--backgroundRGB", type=int, nargs=3,
+        default=DEFAULT_IMAGE_BACKGROUND_RGB)
     args = argParser.parse_args()
+    print(args)
+
+    for color in args.backgroundRGB:
+        if color < 0 or color > 255:
+            print("Invalid value for backgroundRGB.  Requires a 0-255 value for each RGB channel.")
+            exit()
 
     return args
 
@@ -192,7 +204,7 @@ def projectToImagePlane(points):
     return projectedPoints
 
 
-def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels):
+def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels, backgroundRGB):
     """
     Input: Points and colors arrays, where points is a 3xN matrix whose 
     columns are each a point in the rotated coordinate space.
@@ -248,9 +260,9 @@ def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels)
                 pixels[-1].append(None)
                 pixels[-1].append(None)
             else:
-                pixels[-1].append(DEFAULT_IMAGE_BACKGROUND_RGB[0])
-                pixels[-1].append(DEFAULT_IMAGE_BACKGROUND_RGB[1])
-                pixels[-1].append(DEFAULT_IMAGE_BACKGROUND_RGB[2])
+                pixels[-1].append(backgroundRGB[0])
+                pixels[-1].append(backgroundRGB[1])
+                pixels[-1].append(backgroundRGB[2])
 
     for i in range(len(points[0])):
         assert points[2][i] == 1
@@ -267,12 +279,12 @@ def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels)
         pixels[y][x+2] = colors[2][i]
 
     if shouldInterpolateMissingPixels:
-        pixels = interpolateMissingPixels(newWidth, newHeight, pixels)
+        pixels = interpolateMissingPixels(newWidth, newHeight, pixels, backgroundRGB)
 
     return pixels
  
 
-def interpolateMissingPixels(width, height, image):
+def interpolateMissingPixels(width, height, image, backgroundRGB):
     """
     Input: Image of dimensions (width,height) in boxed row flat pixel format, potentially
     with some pixels with RGB values of (None, None, None).
@@ -303,7 +315,7 @@ def interpolateMissingPixels(width, height, image):
                 if numAdjacentPixels > 0:
                     colorAverage = [int(c / numAdjacentPixels) for c in colorTotal]
                 else:
-                    colorAverage = DEFAULT_IMAGE_BACKGROUND_RGB
+                    colorAverage = backgroundRGB
 
                 image[y][x*3] = colorAverage[0]
                 image[y][x*3 + 1] = colorAverage[1]
@@ -358,7 +370,7 @@ if __name__ == "__main__":
 
     print("Saving new image as", newFilename)
 
-    image = pointsToImage(rotatedAndProjectedPoints, cameraColors, width, height, True)
+    image = pointsToImage(rotatedAndProjectedPoints, cameraColors, width, height, True, args.backgroundRGB)
     assert len(image[0]) % 3 == 0
 
     with open(newFilename, 'wb') as f:
