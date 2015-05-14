@@ -136,19 +136,23 @@ def makeEquationsForPoints(imageX, imageY, w1, w2):
     v = np.array([0,0,0,-imageX,-imageY,-1,w2*imageX,w2*imageY,w2])
     return [u,v]
 
-def fileToMatrices(theFilename):
+def fileToImage(theFilename):
     """
     Input: Name of png file
-    Output: (points, colors) tuple.
-    
-    points is a 3xN matrix where each column is a point in the
-    original (W,H) image (1,1)(1,2)...(W,H) and the column labels
-    are the 3 x1,x2,x3 dimensions of the point in the camera
-    coordinate system.
-   
-    colors is the corresponding 3xN matrix of colors for each point in the
-    original image, where the columns again correspond to
-    each point and the rows are the R,G,B values of each pixel. 
+    Output: A dict with these entries:
+    "width": The width of the image in pixels.
+    "height": The height of the image in pixels.
+    "points": A numpy array containing all pixels/points in the
+    image, in the form [x1, x2, ..., xn]
+                       [y1, y2, ..., yn]
+                       [1, 1, ...,   1]
+    where n == width * height.
+    "colors": A numpy array where each column give the color for the
+    corresponding point in the "points" array, of the form
+                      [r1, r2, ..., rn]
+                      [g1, g2, ..., gn]
+                      [b1, b2, ..., bn]
+    where n == width * height
     """
     
     # We retrieve the alpha channel here even though we're not going to use it
@@ -183,7 +187,8 @@ def fileToMatrices(theFilename):
 
     assert len(imgList[0]) == (width * height)
 
-    return (width, height, pixels, np.array(imgList), np.array(colorList))
+    return {"width":width, "height":height,
+        "points": np.array(imgList), "colors": np.array(colorList)}
 
 def projectToImagePlane(points):
     """
@@ -204,7 +209,7 @@ def projectToImagePlane(points):
     return projectedPoints
 
 
-def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels, backgroundRGB):
+def pointsToImageBoxedRowFlatPixel(points, colors, width, height, shouldInterpolateMissingPixels, backgroundRGB):
     """
     Input: Points and colors arrays, where points is a 3xN matrix whose 
     columns are each a point in the rotated coordinate space.
@@ -221,6 +226,8 @@ def pointsToImage(points, colors, width, height, shouldInterpolateMissingPixels,
     each point and the rows are the R,G,B values of each pixel.
 
     Output: Returns the resulting image in boxed row flat pixel format.
+    (A list of the image rows, where each row is a list of the row's pixels,
+    in column order, flattened out to 3 numbers for its RGB channels.
     """
     assert len(points[0]) > 0
     assert len(points[0]) == len(colors[0])
@@ -327,20 +334,26 @@ if __name__ == "__main__":
 
     args = getArgs()
 
-    print("Processing files:", args.filenames)
+    print("Processing images:", args.filenames)
 
-    # TODO: Would be a better user experience to get corner clicks for all images before
-    # we start any processing of the images, so that the user doesn't need to
-    # wait around for the image processing to get done between each set of corner clicks.
+    # Collect all corner clicks first so the user doesn't have to wait for us to
+    # fully process each image between the recording of each set of clicks.
+    images = []
     for filename in args.filenames:
-        (width, height, pixelArray, cameraPoints, cameraColors) = fileToMatrices(filename)
+        image = fileToImage(filename)
 
         print("Getting corners for image", filename)
-        (c0, c1, c2, c3) = getCornerCoordinates(filename)
-        print("Corners", c0, c1, c2, c3)
+        image["corners"] = getCornerCoordinates(filename)
+        print("Corners", image["corners"])
+        images.append(image)
+
+    # Now we'll actually do the alteration of each image in turn
+    for i in range(len(images)):
+        image = images[i]
 
         wVec = np.array([1,0,0,0,0,0,0,0,0])
 
+        (c0, c1, c2, c3) = image["corners"]
         equationsList = [
             makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
             makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
@@ -361,21 +374,21 @@ if __name__ == "__main__":
 
         hVec = hVec.reshape((3,3))
 
-        rotatedPoints = np.dot(hVec, cameraPoints)
+        rotatedPoints = np.dot(hVec, image["points"])
         rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
 
         print("rotatedPoints", rotatedPoints)
         print("rotatedAndProjectedPoints", rotatedAndProjectedPoints)
 
-        splitFilename = filename.split('.')
+        splitFilename = args.filenames[i].split('.')
         newFilename= ".".join(splitFilename[:-1]) + "." + args.suffix + \
             "." + splitFilename[-1]
 
         print("Saving new image as", newFilename)
 
-        image = pointsToImage(rotatedAndProjectedPoints, cameraColors, width, height, True, args.backgroundRGB)
-        assert len(image[0]) % 3 == 0
+        imageBoxedRowFlatPixel = pointsToImageBoxedRowFlatPixel(rotatedAndProjectedPoints, image["colors"], image["width"], image["height"], True, args.backgroundRGB)
+        assert len(imageBoxedRowFlatPixel[0]) % 3 == 0
 
         with open(newFilename, 'wb') as f:
-            png.Writer(width=int(len(image[0]) / 3), height=len(image)).write(f, image) 
+            png.Writer(width=int(len(imageBoxedRowFlatPixel[0]) / 3), height=len(imageBoxedRowFlatPixel)).write(f, imageBoxedRowFlatPixel) 
    
