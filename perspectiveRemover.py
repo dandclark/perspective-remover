@@ -38,6 +38,8 @@ Uses the method developed in the Perspective Removal lab of Philip Klein's
 excellent Linear Algebra course at https://www.coursera.org/course/matrix
 
 Uses Johann C Rocholl's png.py PNG encoder/decoder.
+
+Requires numpy to better facilitate some vector/matrix operations.
 """
 
 import argparse
@@ -351,9 +353,11 @@ if __name__ == "__main__":
     for i in range(len(images)):
         image = images[i]
 
-        wVec = np.array([1,0,0,0,0,0,0,0,0])
-
+        # Create a list of equations linking the coordinate system of the original
+        # image to the rotated coordinate system that we will use to create
+        # the rotated image
         (c0, c1, c2, c3) = image["corners"]
+        wVec = np.array([1,0,0,0,0,0,0,0,0])
         equationsList = [
             makeEquationsForPoints(c0[0], c0[1], 0, 0)[0],
             makeEquationsForPoints(c0[0], c0[1], 0, 0)[1],
@@ -369,11 +373,14 @@ if __name__ == "__main__":
         lMat = np.vstack(equationsList)
         b = np.array([0,0,0,0,0,0,0,0,1])
 
-        # Solve L * H = b
+        # Solve the system of equations lMat * H = b to obtain a 3x3 matrix that we
+        # can use to transform each image point from the original coordinate system
+        # to the rotated coordinate system
         hVec = np.linalg.lstsq(lMat, b)[0]
-
         hVec = hVec.reshape((3,3))
 
+        # Transform each point to its corresponding location in the rotated coordinate
+        # system, and then flatten the points back to a 2-D plane.
         rotatedPoints = np.dot(hVec, image["points"])
         rotatedAndProjectedPoints = projectToImagePlane(rotatedPoints)
 
