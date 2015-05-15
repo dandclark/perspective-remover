@@ -71,6 +71,13 @@ def getArgs():
     argParser.add_argument("-b", "--backgroundRGB", type=int, nargs=3,
         default=DEFAULT_IMAGE_BACKGROUND_RGB, help="0-255 R,G,B channel values for altered image background")
     argParser.add_argument("filenames", type=str, nargs="+", help="Filename(s) of image(s) to alter")
+    argParser.add_argument("--interpolate", dest='shouldInterpolate', action='store_true',
+        help="Interpolate values of missing pixels in altered image based on surrounding pixels (default)")
+    argParser.add_argument("-n", "--no-interpolate", dest='shouldInterpolate', action='store_false',
+        help="Use background RGB for all missing pixels in altered image, instead of interpolating based on surrounding pixels")
+
+    argParser.set_defaults(shouldInterpolate=True)
+
     args = argParser.parse_args()
     print(args)
 
@@ -393,7 +400,8 @@ if __name__ == "__main__":
 
         print("Saving new image as", newFilename)
 
-        imageBoxedRowFlatPixel = pointsToImageBoxedRowFlatPixel(rotatedAndProjectedPoints, image["colors"], image["width"], image["height"], True, args.backgroundRGB)
+        imageBoxedRowFlatPixel = pointsToImageBoxedRowFlatPixel(rotatedAndProjectedPoints,
+            image["colors"], image["width"], image["height"], args.shouldInterpolate, args.backgroundRGB)
         assert len(imageBoxedRowFlatPixel[0]) % 3 == 0
 
         with open(newFilename, 'wb') as f:
