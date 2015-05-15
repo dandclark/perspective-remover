@@ -13,18 +13,8 @@ Requires numpy to better facilitate some vector/matrix operations.
 
 ## Examples
 
-### Before
+Before | After
+------------- | -------------
+![Birds, original](https://raw.github.com/dandclark/perspective-remover/master/demo/birds.png) | ![Birds, perspective removed](https://raw.github.com/dandclark/perspective-remover/master/demo/birds.FIXED.png)
+![Book, original](https://raw.github.com/dandclark/perspective-remover/master/demo/book.png)  | ![Book, perspective removed](https://raw.github.com/dandclark/perspective-remover/master/demo/book.FIXED.png)
 
-![Birds, original](https://raw.github.com/dandclark/perspective-remover/master/demo/birds.png)
-
-### After
-
-![Birds, perspective removed](https://raw.github.com/dandclark/perspective-remover/master/demo/birds.FIXED.png)
-
-### Before
-
-![Book, original](https://raw.github.com/dandclark/perspective-remover/master/demo/book.png)
-
-### After
-
-![Book, perspective removed](https://raw.github.com/dandclark/perspective-remover/master/demo/book.FIXED.png)
